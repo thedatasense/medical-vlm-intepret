@@ -217,7 +217,7 @@ class EnhancedLLaVARadVisualizer:
         self.patch_size = self.config.patch_size
         logger.info(f"Enhanced LLaVA-Rad Visualizer initialized on {self.device}")
     
-    def setup_gpu(self, min_free_gb: float = 15.0) -> str:
+    def setup_gpu(self, min_free_gb: float = 10.0) -> str:
         """Setup GPU with sufficient memory"""
         if not torch.cuda.is_available():
             logger.warning("CUDA not available, using CPU")

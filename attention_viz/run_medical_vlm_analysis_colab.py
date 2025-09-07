@@ -130,7 +130,7 @@ def load_models(llava_8bit=True, medgemma_8bit=True):
     # Load MedGemma
     print("Loading MedGemma...")
     medgemma_model, medgemma_processor = load_model_enhanced(
-        model_id="google/med-gemma-3-4b-it",
+        model_id="google/paligemma-3b-mix-224",
         load_in_8bit=medgemma_8bit
     )
     
@@ -212,19 +212,32 @@ def process_single_sample(
     llava_metrics['sparsity'] = AttentionMetrics.calculate_sparsity(llava_attention)
     
     # MedGemma inference
-    # Check if processor expects different prompt format
-    prompt = f"<image>{question}"
+    # Build prompt with chat template to ensure image tokens are inserted
     if hasattr(medgemma_processor, 'apply_chat_template'):
-        try:
-            prompt = medgemma_processor.apply_chat_template([{"role": "user", "content": f"<image>{question}"}])
-        except:
-            pass  # Use default prompt
-    
-    inputs = medgemma_processor(
-        text=prompt,
-        images=image_pil,
-        return_tensors="pt"
-    )
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": question},
+                ],
+            }
+        ]
+        prompt = medgemma_processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+        inputs = medgemma_processor(
+            text=prompt,
+            images=image_pil,
+            return_tensors="pt",
+        )
+    else:
+        # Fallback: explicit <image> token
+        inputs = medgemma_processor(
+            text=f"<image>{question}",
+            images=image_pil,
+            return_tensors="pt",
+        )
     
     device = next(medgemma_model.parameters()).device
     inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -244,7 +257,26 @@ def process_single_sample(
     medgemma_answer = medgemma_processor.tokenizer.decode(
         outputs.sequences[0], skip_special_tokens=True
     )
-    medgemma_answer = medgemma_answer.split("Assistant:")[-1].strip()
+    
+    # Handle Gemma-3 format
+    if '<start_of_turn>model' in medgemma_answer:
+        # Extract text after model turn
+        parts = medgemma_answer.split('<start_of_turn>model')
+        if len(parts) > 1:
+            medgemma_answer = parts[-1]
+            # Remove end_of_turn if present
+            medgemma_answer = medgemma_answer.split('<end_of_turn>')[0]
+    elif '<start_of_turn>assistant' in medgemma_answer:
+        parts = medgemma_answer.split('<start_of_turn>assistant')
+        if len(parts) > 1:
+            medgemma_answer = parts[-1]
+            medgemma_answer = medgemma_answer.split('<end_of_turn>')[0]
+    else:
+        # Fallback: split by common patterns
+        medgemma_answer = medgemma_answer.split("Assistant:")[-1]
+        medgemma_answer = medgemma_answer.split("model\n")[-1]
+    
+    medgemma_answer = medgemma_answer.strip()
     
     # Extract MedGemma attention
     target_words = ["pneumonia", "consolidation", "opacity", "finding", "abnormal"]

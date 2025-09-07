@@ -202,7 +202,7 @@ def load_medgemma_model(model_id: str,
 def compare_models_on_input(
     image_path: str,
     prompt: str,
-    medgemma_model_id: str = "google/med-gemma-3-4b-it",  # Update to your available checkpoint
+    medgemma_model_id: str = "google/paligemma-3b-mix-224",  # PaliGemma medical VLM
     target_words: Optional[List[str]] = None,
     llava_load_in_8bit: bool = True,
     medgemma_load_in_8bit: bool = True,
@@ -282,9 +282,27 @@ def compare_models_on_input(
     )
     extractor = EnhancedAttentionExtractor(extractor_cfg)
 
-    inputs = med_handles.processor(
-        text=f"<image>{prompt}", images=image, return_tensors="pt"
-    )
+    # Build prompt with chat template (ensures image token is present)
+    if hasattr(med_handles.processor, "apply_chat_template"):
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+        prompt_text = med_handles.processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+        inputs = med_handles.processor(
+            text=prompt_text, images=image, return_tensors="pt"
+        )
+    else:
+        inputs = med_handles.processor(
+            text=f"<image>{prompt}", images=image, return_tensors="pt"
+        )
     inputs = {k: v.to(med_handles.device) for k, v in inputs.items()}
 
     with torch.no_grad():
@@ -301,8 +319,21 @@ def compare_models_on_input(
         ans_med = med_handles.processor.tokenizer.decode(
             med_gen.sequences[0], skip_special_tokens=True
         )
-        # Common formatting cleanup
-        ans_med = ans_med.split("Assistant:")[-1].strip()
+        # Handle Gemma-3 format
+        if '<start_of_turn>model' in ans_med:
+            parts = ans_med.split('<start_of_turn>model')
+            if len(parts) > 1:
+                ans_med = parts[-1].split('<end_of_turn>')[0]
+        elif '<start_of_turn>assistant' in ans_med:
+            parts = ans_med.split('<start_of_turn>assistant')
+            if len(parts) > 1:
+                ans_med = parts[-1].split('<end_of_turn>')[0]
+        else:
+            # Fallback
+            ans_med = ans_med.split("Assistant:")[-1]
+            ans_med = ans_med.split("model\n")[-1]
+        
+        ans_med = ans_med.strip()
     except Exception:
         ans_med = ""
 

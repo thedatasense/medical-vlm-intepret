@@ -19,7 +19,7 @@ import hashlib
 logger = logging.getLogger(__name__)
 
 
-def load_model_enhanced(model_id: str = "google/med-gemma-3-4b-it",
+def load_model_enhanced(model_id: str = "google/paligemma-3b-mix-224",
                        load_in_8bit: bool = True,
                        load_in_4bit: bool = False) -> Tuple[Any, Any]:
     """
@@ -47,17 +47,18 @@ def load_model_enhanced(model_id: str = "google/med-gemma-3-4b-it",
     # Load processor
     processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
     
-    # Load model
+    # Load model with eager attention for attention extraction
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         torch_dtype=torch.float16,
         device_map="auto",
         quantization_config=bnb_config,
-        trust_remote_code=True
+        trust_remote_code=True,
+        attn_implementation="eager"  # Enable attention outputs
     )
     
     model.eval()
-    logger.info(f"MedGemma model loaded: {model_id}")
+    logger.info(f"PaliGemma model loaded: {model_id}")
     
     return model, processor
 
@@ -164,11 +165,24 @@ class EnhancedAttentionExtractor:
         if pil_image is not None and prompt is not None:
             try:
                 # Prepare inputs for forward pass
-                inputs = processor(
-                    text=f"<image>{prompt}",
-                    images=pil_image,
-                    return_tensors="pt"
-                )
+                if hasattr(processor, 'apply_chat_template'):
+                    messages = [{
+                        "role": "user",
+                        "content": [
+                            {"type": "image"},
+                            {"type": "text", "text": prompt},
+                        ],
+                    }]
+                    text = processor.apply_chat_template(
+                        messages, tokenize=False, add_generation_prompt=True
+                    )
+                    inputs = processor(text=text, images=pil_image, return_tensors="pt")
+                else:
+                    inputs = processor(
+                        text=f"<image>{prompt}",
+                        images=pil_image,
+                        return_tensors="pt"
+                    )
                 
                 # Move to device
                 device = next(model.parameters()).device
@@ -212,11 +226,15 @@ class EnhancedAttentionExtractor:
                                 if isinstance(layer_attn, tuple):
                                     layer_attn = layer_attn[0]
                                 
+                                if layer_attn is None:
+                                    logger.warning(f"Layer {layer_idx} attention is None")
+                                    continue
+                                    
                                 if isinstance(layer_attn, torch.Tensor):
                                     layer_attn = layer_attn.cpu().numpy()
                                 
                                 # Extract attention for the last token (as query) to visual tokens
-                                if len(layer_attn.shape) == 4:  # [batch, heads, seq, seq]
+                                if hasattr(layer_attn, 'shape') and len(layer_attn.shape) == 4:  # [batch, heads, seq, seq]
                                     # Aggregate heads based on config
                                     if self.config.attention_head_reduction == 'mean':
                                         layer_attn = layer_attn.mean(axis=1)
@@ -238,8 +256,11 @@ class EnhancedAttentionExtractor:
                                     
                                     layer_attn = layer_attn[0]  # Remove batch
                                 
-                                elif len(layer_attn.shape) == 3:  # [batch, seq, seq]
+                                elif hasattr(layer_attn, 'shape') and len(layer_attn.shape) == 3:  # [batch, seq, seq]
                                     layer_attn = layer_attn[0]
+                                elif hasattr(layer_attn, 'shape'):
+                                    logger.warning(f"Unexpected attention shape at layer {layer_idx}: {layer_attn.shape}")
+                                    continue
                                 
                                 # Extract attention from last token to visual tokens
                                 visual_attention = layer_attn[-1, visual_token_range.start:visual_token_range.stop]
@@ -370,12 +391,25 @@ class EnhancedAttentionExtractor:
         if pil_image is None:
             return None
         
-        # Prepare inputs
-        inputs = processor(
-            text=f"<image>{prompt}",
-            images=pil_image,
-            return_tensors="pt"
-        )
+        # Prepare inputs (respect chat template if available)
+        if hasattr(processor, 'apply_chat_template'):
+            messages = [{
+                "role": "user",
+                "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": prompt},
+                ],
+            }]
+            text = processor.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            inputs = processor(text=text, images=pil_image, return_tensors="pt")
+        else:
+            inputs = processor(
+                text=f"<image>{prompt}",
+                images=pil_image,
+                return_tensors="pt"
+            )
         
         # Move to device
         device = next(model.parameters()).device

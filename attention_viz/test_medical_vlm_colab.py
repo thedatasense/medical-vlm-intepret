@@ -90,7 +90,7 @@ print("\n5. Testing MedGemma...")
 try:
     print("  Loading model...")
     medgemma_model, medgemma_processor = load_model_enhanced(
-        model_id="google/med-gemma-3-4b-it",
+        model_id="google/paligemma-3b-mix-224",
         load_in_8bit=True
     )
     print("✓ MedGemma loaded successfully")
@@ -106,21 +106,30 @@ try:
     # Test inference
     print("  Testing inference...")
     
-    # Try different prompt formats
-    prompts_to_try = [
-        f"<image>{test_question}",
-        f"{test_question}",
-        f"<image>\n{test_question}"
-    ]
-    
-    for i, prompt in enumerate(prompts_to_try):
-        print(f"  Trying prompt format {i+1}: {repr(prompt[:50])}")
+    # Prefer chat template to ensure image token presence
+    prompts_to_try = []
+    if hasattr(medgemma_processor, 'apply_chat_template'):
+        messages = [{
+            "role": "user",
+            "content": [
+                {"type": "image"},
+                {"type": "text", "text": test_question},
+            ],
+        }]
+        prompt_chat = medgemma_processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+        prompts_to_try.append(("chat", prompt_chat))
+    # Fallback prompts
+    prompts_to_try.extend([
+        ("inline1", f"<image>{test_question}"),
+        ("inline2", f"<image>\n{test_question}"),
+    ])
+
+    for i, (label, prompt) in enumerate(prompts_to_try, start=1):
+        print(f"  Trying prompt format {i} ({label}): {repr(prompt[:60])}")
         try:
-            inputs = medgemma_processor(
-                text=prompt,
-                images=test_image,
-                return_tensors="pt"
-            )
+            inputs = medgemma_processor(text=prompt, images=test_image, return_tensors="pt")
             
             # Check input shapes
             print(f"    Input shapes: {[(k, v.shape) for k, v in inputs.items()]}")
