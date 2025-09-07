@@ -750,8 +750,15 @@ class EnhancedLLaVARadVisualizer:
                 logger.info("Using cached result")
                 return cached
         
-        # Prepare inputs
-        prompt = f"<image>\n{question}"
+        # Prepare inputs - ensure proper image token
+        if getattr(self, 'using_llava_lib', False):
+            prompt = f"<image>\n{question}"
+        else:
+            # For HF models, check if processor expects different format
+            if hasattr(self.processor, 'image_token') and self.processor.image_token:
+                prompt = f"{self.processor.image_token}\n{question}"
+            else:
+                prompt = f"<image>\n{question}"
         
         # Process inputs based on model type
         if getattr(self, 'using_llava_lib', False):

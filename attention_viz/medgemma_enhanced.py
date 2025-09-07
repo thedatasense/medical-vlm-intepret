@@ -243,6 +243,12 @@ class EnhancedAttentionExtractor:
                                 
                                 # Extract attention from last token to visual tokens
                                 visual_attention = layer_attn[-1, visual_token_range.start:visual_token_range.stop]
+                                
+                                # Ensure we have valid attention values
+                                if len(visual_attention.shape) == 0 or visual_attention.size == 0:
+                                    logger.warning(f"Empty attention at layer {layer_idx}")
+                                    continue
+                                    
                                 attention_maps.append(visual_attention)
                             
                             if attention_maps:
@@ -253,9 +259,23 @@ class EnhancedAttentionExtractor:
                                 grid_size = int(np.sqrt(len(visual_token_range)))
                                 if grid_size * grid_size != len(visual_token_range):
                                     # Handle non-square grids
-                                    h = getattr(processor, 'image_seq_length', grid_size)
-                                    w = len(visual_token_range) // h if h > 0 else grid_size
-                                    attention_grid = aggregated.reshape(h, w)
+                                    # Try to find reasonable dimensions
+                                    n_tokens = len(visual_token_range)
+                                    h = int(np.sqrt(n_tokens))
+                                    w = n_tokens // h
+                                    
+                                    # Ensure h*w >= n_tokens
+                                    while h * w < n_tokens:
+                                        w += 1
+                                    
+                                    # Trim or pad if necessary
+                                    if h * w > n_tokens:
+                                        # Pad with zeros
+                                        padded = np.zeros(h * w)
+                                        padded[:n_tokens] = aggregated
+                                        attention_grid = padded.reshape(h, w)
+                                    else:
+                                        attention_grid = aggregated.reshape(h, w)
                                 else:
                                     attention_grid = aggregated.reshape(grid_size, grid_size)
                                 
@@ -320,9 +340,22 @@ class EnhancedAttentionExtractor:
         grid_size = int(np.sqrt(len(visual_token_range)))
         if grid_size * grid_size != len(visual_token_range):
             # Handle non-square grids
-            h = processor.image_seq_length
-            w = len(visual_token_range) // h if h > 0 else grid_size
-            attention_grid = aggregated.reshape(h, w)
+            n_tokens = len(visual_token_range)
+            h = int(np.sqrt(n_tokens))
+            w = n_tokens // h
+            
+            # Ensure h*w >= n_tokens
+            while h * w < n_tokens:
+                w += 1
+            
+            # Trim or pad if necessary
+            if h * w > n_tokens:
+                # Pad with zeros
+                padded = np.zeros(h * w)
+                padded[:n_tokens] = aggregated
+                attention_grid = padded.reshape(h, w)
+            else:
+                attention_grid = aggregated.reshape(h, w)
         else:
             attention_grid = aggregated.reshape(grid_size, grid_size)
         

@@ -189,6 +189,9 @@ def process_single_sample(
     
     image_pil = Image.open(image_path).convert('RGB')
     
+    # Debug: Check image size
+    print(f"  Processing image: {os.path.basename(image_path)} ({image_pil.size})")
+    
     # LLaVA-Rad inference
     start_time = time.time()
     llava_result = llava_vis.generate_with_attention(
@@ -209,8 +212,16 @@ def process_single_sample(
     llava_metrics['sparsity'] = AttentionMetrics.calculate_sparsity(llava_attention)
     
     # MedGemma inference
+    # Check if processor expects different prompt format
+    prompt = f"<image>{question}"
+    if hasattr(medgemma_processor, 'apply_chat_template'):
+        try:
+            prompt = medgemma_processor.apply_chat_template([{"role": "user", "content": f"<image>{question}"}])
+        except:
+            pass  # Use default prompt
+    
     inputs = medgemma_processor(
-        text=f"<image>{question}",
+        text=prompt,
         images=image_pil,
         return_tensors="pt"
     )
