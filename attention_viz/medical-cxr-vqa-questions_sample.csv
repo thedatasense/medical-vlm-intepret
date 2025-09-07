@@ -1,0 +1,101 @@
+,dicom_id,subject_id,study_id,question,question_type,answer,split,image_path
+1,02aa804e-bde0afdd-112c0b34-7bc16630-4e384014,10000032,50414267,is there pleural effusion?,presence,no,train,02aa804e-bde0afdd-112c0b34-7bc16630-4e384014.jpg
+5,2a2277a9-b0ded155-c0de8eb9-c124d10e-82c5caab,10000032,53189527,is there fracture in the right-sided rib area?,presence,no,train,2a2277a9-b0ded155-c0de8eb9-c124d10e-82c5caab.jpg
+9,68b5c4b1-227d0485-9cc38c3f-7b84ab51-4b472714,10000032,53911762,is there hernia?,presence,no,train,68b5c4b1-227d0485-9cc38c3f-7b84ab51-4b472714.jpg
+13,ea030e7a-2e3b1346-bc518786-7a8fd698-f673b44c,10000032,56699142,is there fracture in the right rib area?,presence,no,train,ea030e7a-2e3b1346-bc518786-7a8fd698-f673b44c.jpg
+17,096052b7-d256dc40-453a102b-fa7d01c6-1b22c6b4,10000764,57375967,is there air collection?,presence,no,train,096052b7-d256dc40-453a102b-fa7d01c6-1b22c6b4.jpg
+21,2a280266-c8bae121-54d75383-cac046f4-ca37aa16,10000898,50771383,is there evidence of effusion in this image?,presence,no,train,2a280266-c8bae121-54d75383-cac046f4-ca37aa16.jpg
+24,b75df1bd-0f22d631-52d73526-2ae7b85a-d843b39d,10000898,54205396,is there kyphosis?,presence,yes,train,b75df1bd-0f22d631-52d73526-2ae7b85a-d843b39d.jpg
+29,d0b71acc-b5a62046-bbb5f6b8-7b173b85-65cdf738,10000935,50578979,is there pneumothorax?,presence,no,train,d0b71acc-b5a62046-bbb5f6b8-7b173b85-65cdf738.jpg
+33,9b314ad7-fbcb0422-6db62dfc-732858d0-a5527d8b,10000935,51178377,is there opacity?,presence,yes,train,9b314ad7-fbcb0422-6db62dfc-732858d0-a5527d8b.jpg
+38,c50494f1-90e2bff5-e9189550-1a4562fd-6ab5204c,10000935,55697293,is there evidence of fracture in this image?,presence,yes,train,c50494f1-90e2bff5-e9189550-1a4562fd-6ab5204c.jpg
+42,8e3f2822-0c1d4b71-2a265bbf-5b96e531-ccf5fa30,10000935,56164612,is there evidence of metastasis in this image?,presence,yes,train,8e3f2822-0c1d4b71-2a265bbf-5b96e531-ccf5fa30.jpg
+46,f1adcae3-2921c0a8-5d9652f9-4191ecd7-f2a96f35,10000935,56522600,is there pleural thickening?,presence,yes,train,f1adcae3-2921c0a8-5d9652f9-4191ecd7-f2a96f35.jpg
+49,88498b37-c21dc7ba-bc202800-b517a62d-f7ac5bcf,10000935,58219844,is there cardiomegaly in the lungs area?,presence,yes,train,88498b37-c21dc7ba-bc202800-b517a62d-f7ac5bcf.jpg
+53,6ad03ed1-97ee17ee-9cf8b320-f7011003-cd93b42d,10000980,50985099,is there pulmonary arterial hypertension?,presence,yes,train,6ad03ed1-97ee17ee-9cf8b320-f7011003-cd93b42d.jpg
+57,943486a3-b3fa9ff7-50f5a769-7a62fcbb-f39b6da4,10000980,51967283,is there pneumonia in the left upper lobe area?,presence,no,train,943486a3-b3fa9ff7-50f5a769-7a62fcbb-f39b6da4.jpg
+61,cfb03587-782edf6c-1bf392e1-98196cd5-365d69e8,10000980,54577367,is there vascular redistribution in the lower zone area?,presence,no,train,cfb03587-782edf6c-1bf392e1-98196cd5-365d69e8.jpg
+65,6ad819bb-bae74eb9-7b663e90-b8deabd7-57f8054a,10000980,54935705,is there evidence of pulmonary edema in this image?,presence,yes,train,6ad819bb-bae74eb9-7b663e90-b8deabd7-57f8054a.jpg
+71,a75a1fbe-802065ad-717eb7c1-e2ce3552-646276a6,10000980,54980801,is there calcification?,presence,yes,train,a75a1fbe-802065ad-717eb7c1-e2ce3552-646276a6.jpg
+74,54affd39-8bf24209-232bac8a-df6c277a-398ee8a5,10000980,58206436,is there pulmonary edema?,presence,yes,train,54affd39-8bf24209-232bac8a-df6c277a-398ee8a5.jpg
+77,c7526473-7b7214ee-a5d58d12-29d1f67f-9f4edf00,10000980,58636672,is there elongation of the descending aorta?,presence,yes,train,c7526473-7b7214ee-a5d58d12-29d1f67f-9f4edf00.jpg
+82,925b9496-a956d7b2-05185e52-bb33313b-c06ee522,10000980,59988438,is the pleural effusion bilateral?,presence,yes,train,925b9496-a956d7b2-05185e52-bb33313b-c06ee522.jpg
+87,28fad2ac-d6001216-b4f72c5b-2d4d452e-17b6c9a5,10001038,58224503,is there evidence of consolidation in this image?,presence,no,train,28fad2ac-d6001216-b4f72c5b-2d4d452e-17b6c9a5.jpg
+90,07b9ddda-9a4a1e1a-4495463d-4c77d947-ed368713,10001122,53957785,is there evidence of demineralization in this image?,presence,yes,train,07b9ddda-9a4a1e1a-4495463d-4c77d947-ed368713.jpg
+94,1fe73f8e-036bd24e-4578c891-33c1746e-864884a7,10001176,53186264,is there evidence of pneumothorax in this image?,presence,no,train,1fe73f8e-036bd24e-4578c891-33c1746e-864884a7.jpg
+100,3b8b1b7d-054490d5-385641e7-ff43d2c8-9505f058,10001176,54684191,is there edema?,presence,yes,train,3b8b1b7d-054490d5-385641e7-ff43d2c8-9505f058.jpg
+106,a917c883-720a5bbf-02c84fc6-98ad00ac-c562ff80,10001217,52067803,is there atelectasis in the left base area?,presence,yes,train,a917c883-720a5bbf-02c84fc6-98ad00ac-c562ff80.jpg
+110,5e54fc9c-37c49834-9ac3b915-55811712-9d959d26,10001217,58913004,is there evidence of atelectasis in this image?,presence,no,train,5e54fc9c-37c49834-9ac3b915-55811712-9d959d26.jpg
+113,0009a9fb-eb905e90-824cad7c-16d40468-007f0038,10001401,50225296,is there evidence of pleural effusion in this image?,presence,no,train,0009a9fb-eb905e90-824cad7c-16d40468-007f0038.jpg
+115,8061113f-c019f3ae-fd1b7c54-33e8690d-be838099,10001401,51065211,is there atelectasis?,presence,yes,train,8061113f-c019f3ae-fd1b7c54-33e8690d-be838099.jpg
+120,d69651ae-dc7bacca-a05efc02-1d5882cd-001c77c4,10001401,56534136,is there pneumothorax?,presence,no,train,d69651ae-dc7bacca-a05efc02-1d5882cd-001c77c4.jpg
+122,a83c7ff9-2d42639c-6ddebd0e-6b67809b-38210026,10001401,57492692,is there evidence of atelectasis in this image?,presence,yes,train,a83c7ff9-2d42639c-6ddebd0e-6b67809b-38210026.jpg
+126,19e55bee-714bb193-0968d683-5bf655a5-7b5caba9,10001401,58747570,is there evidence of atelectasis in this image?,presence,yes,train,19e55bee-714bb193-0968d683-5bf655a5-7b5caba9.jpg
+130,edb88e4a-c04f1be7-aefcf3e0-8889542d-692ff7fd,10001851,59664767,is there pleural thickening in the biapical area?,presence,yes,train,edb88e4a-c04f1be7-aefcf3e0-8889542d-692ff7fd.jpg
+135,3892f17f-8fa034e8-e9b81865-01c48bbb-b9452626,10001884,50279568,is there evidence of hyperinflation in this image?,presence,yes,train,3892f17f-8fa034e8-e9b81865-01c48bbb-b9452626.jpg
+139,469d0d94-3dad5068-efac76ef-a28cc502-68fe6275,10001884,50376803,is there scarring in the both lung apices area?,presence,yes,train,469d0d94-3dad5068-efac76ef-a28cc502-68fe6275.jpg
+141,7b25b3ed-e780a527-319cb7b3-02d5d071-f1cddee9,10001884,50712381,is there cardiomegaly?,presence,yes,train,7b25b3ed-e780a527-319cb7b3-02d5d071-f1cddee9.jpg
+144,ebf48d65-7e780cd5-59118fba-50977097-3720cc7e,10001884,50807032,is there bronchiectasis?,presence,yes,train,ebf48d65-7e780cd5-59118fba-50977097-3720cc7e.jpg
+148,96bfb531-d6621042-58ea2067-b155e38f-f76e305b,10001884,51181158,is there pleural effusion?,presence,no,train,96bfb531-d6621042-58ea2067-b155e38f-f76e305b.jpg
+150,d5f12914-f14ffd99-3ff2ee54-6f0cbd0c-4c411a2c,10001884,51817555,is there evidence of pleural effusion in this image?,presence,no,train,d5f12914-f14ffd99-3ff2ee54-6f0cbd0c-4c411a2c.jpg
+153,ee31086f-cbf22f9d-9553d506-2bcd4167-0e1e17bf,10001884,52060840,is there evidence of pleural thickening in this image?,presence,yes,train,ee31086f-cbf22f9d-9553d506-2bcd4167-0e1e17bf.jpg
+158,1e583282-042438d1-4c0d5389-f3c06b76-e9a29eaa,10001884,53109065,is there pleural effusion?,presence,no,train,1e583282-042438d1-4c0d5389-f3c06b76-e9a29eaa.jpg
+163,9f5446a9-46ea84a3-6806d8b7-2c0f6d4d-38799159,10001884,53268982,is there evidence of pneumonia in this image?,presence,yes,train,9f5446a9-46ea84a3-6806d8b7-2c0f6d4d-38799159.jpg
+169,52d6c812-26dfed36-97e26b11-1fa88177-e8b8b150,10001884,53880659,is there evidence of pneumothorax in this image?,presence,no,train,52d6c812-26dfed36-97e26b11-1fa88177-e8b8b150.jpg
+171,a6617202-f5a8661d-78eb1442-037bf3e4-3dd8967f,10001884,53894864,is there evidence of edema in this image?,presence,no,train,a6617202-f5a8661d-78eb1442-037bf3e4-3dd8967f.jpg
+174,4ee6a7f9-915c4c58-7dd1082b-6d03b302-aef0b6d9,10001884,54000534,is there hyperexpanded lung?,presence,yes,train,4ee6a7f9-915c4c58-7dd1082b-6d03b302-aef0b6d9.jpg
+178,3fc658da-23a5d1b2-68e913fd-bf919f75-b7113290,10001884,54369281,is there atelectasis in the bibasilar area?,presence,yes,train,3fc658da-23a5d1b2-68e913fd-bf919f75-b7113290.jpg
+180,7f23b996-22544258-fcf2fbc3-f8dbf8e7-b6c0e4c5,10001884,54579606,is there intrathoracic process?,presence,no,train,7f23b996-22544258-fcf2fbc3-f8dbf8e7-b6c0e4c5.jpg
+183,7561a64e-145a404e-f12d8f04-3b19c4e1-3de6e5a0,10001884,54828594,is there atelectasis?,presence,yes,train,7561a64e-145a404e-f12d8f04-3b19c4e1-3de6e5a0.jpg
+187,5b135035-4708084f-3bb6d230-9db72889-2aa90c14,10001884,55333410,is there pleural parenchymal scarring in the biapical area?,presence,yes,train,5b135035-4708084f-3bb6d230-9db72889-2aa90c14.jpg
+190,8d4eb7a8-0d3c4f7e-fed33834-ef1c6ffd-e01d0967,10001884,55893591,is there consolidation?,presence,no,train,8d4eb7a8-0d3c4f7e-fed33834-ef1c6ffd-e01d0967.jpg
+193,f8d7008c-ed9b419b-7f0c85b0-acf404a4-5afe3f3d,10001884,56308417,is there effusion?,presence,no,train,f8d7008c-ed9b419b-7f0c85b0-acf404a4-5afe3f3d.jpg
+197,79863f89-595bf19b-3c7b514a-42969d9b-eff42368,10001884,56349965,is there evidence of cardiomegaly in this image?,presence,yes,train,79863f89-595bf19b-3c7b514a-42969d9b-eff42368.jpg
+202,c1ad3e27-62d05ef8-95018fe3-b8bcfe4b-bbba0e1f,10001884,56722923,is there cardiomegaly in the mediastinal area?,presence,yes,train,c1ad3e27-62d05ef8-95018fe3-b8bcfe4b-bbba0e1f.jpg
+206,9fd47edd-07087209-b901811e-3e9e5f50-f382f611,10001884,57156853,is there vascular congestion in the pulmonary area?,presence,yes,train,9fd47edd-07087209-b901811e-3e9e5f50-f382f611.jpg
+210,7f885b34-699f595b-36446207-4f146366-55dfb63f,10001884,57166219,is there consolidation?,presence,no,train,7f885b34-699f595b-36446207-4f146366-55dfb63f.jpg
+213,1f413a3b-78c5a4aa-978ff5ff-f72a424c-b3a51b92,10001884,57839849,is there pleural effusion?,presence,no,train,1f413a3b-78c5a4aa-978ff5ff-f72a424c-b3a51b92.jpg
+216,00dccb6d-d0c6f3d3-96277b9f-0ee6d7aa-08abfc1f,10001884,58196907,is there consolidation?,presence,no,train,00dccb6d-d0c6f3d3-96277b9f-0ee6d7aa-08abfc1f.jpg
+218,7f4e7b8d-cacf5a8f-067353ea-f006ed1c-947dc749,10001884,58350684,is there atelectasis?,presence,yes,train,7f4e7b8d-cacf5a8f-067353ea-f006ed1c-947dc749.jpg
+223,dae10c54-dcb7bb1f-428bb377-af3b739e-9b16e579,10001884,58788638,is there evidence of atelectasis in this image?,presence,yes,train,dae10c54-dcb7bb1f-428bb377-af3b739e-9b16e579.jpg
+229,66ee3842-a927ac25-a5df697e-f1f36b1f-201b2172,10001884,59066712,is there evidence of pleural effusion in this image?,presence,no,train,66ee3842-a927ac25-a5df697e-f1f36b1f-201b2172.jpg
+232,4a327635-ff0c1380-58766d70-6080047d-3f3d124f,10001884,59212874,is there atelectasis?,presence,yes,train,4a327635-ff0c1380-58766d70-6080047d-3f3d124f.jpg
+238,9b1a8a51-2b8e4a04-1719059d-aa6bc888-7ace612b,10001884,59305618,is there subcutaneous emphysema?,presence,no,train,9b1a8a51-2b8e4a04-1719059d-aa6bc888-7ace612b.jpg
+242,547c0b6b-72739eeb-3c33bc3e-3aa73d13-a9a54bd5,10001884,59635781,is there evidence of pleural effusion in this image?,presence,no,train,547c0b6b-72739eeb-3c33bc3e-3aa73d13-a9a54bd5.jpg
+244,2d8a8525-19d0c810-045e1619-ef196132-cd4f1710,10001884,59984865,is there evidence of pneumothorax in this image?,presence,no,train,2d8a8525-19d0c810-045e1619-ef196132-cd4f1710.jpg
+247,1e647043-eed3576e-3123c170-780cb897-93a89502,10002013,52163036,is there pneumothorax in the right area?,presence,no,train,1e647043-eed3576e-3123c170-780cb897-93a89502.jpg
+252,0c27f551-2cc6bf3e-a2e2cabd-97973771-40f1e6ce,10002013,52535468,is there evidence of pleural thickening in this image?,presence,yes,train,0c27f551-2cc6bf3e-a2e2cabd-97973771-40f1e6ce.jpg
+255,9ca8f84e-92fac212-e60ac49d-01779362-caa16791,10002013,54573731,is there evidence of consolidation in this image?,presence,no,train,9ca8f84e-92fac212-e60ac49d-01779362-caa16791.jpg
+257,ab37274f-b4c1fc04-e2ff24b4-4a130ba3-cd167968,10002013,55941092,is there evidence of pulmonary emphysema in this image?,presence,no,train,ab37274f-b4c1fc04-e2ff24b4-4a130ba3-cd167968.jpg
+260,75a4feeb-09da971a-8852f2d6-5eb13992-42d9a50c,10002013,55969846,is there evidence of pneumothorax in this image?,presence,no,train,75a4feeb-09da971a-8852f2d6-5eb13992-42d9a50c.jpg
+262,48edbd44-ca2376ca-059a9f55-3fc8abd1-e13e4b76,10002013,57741292,is there atelectasis in the right base area?,presence,no,train,48edbd44-ca2376ca-059a9f55-3fc8abd1-e13e4b76.jpg
+266,81bca127-0c416084-67f8033c-ecb26476-6d1ecf60,10002013,58054149,is there opacity in the right basilar area?,presence,no,train,81bca127-0c416084-67f8033c-ecb26476-6d1ecf60.jpg
+271,051b7911-cb00aec9-0b309188-89803662-303ec278,10002131,52823782,is the pleural effusion bilateral?,presence,yes,train,051b7911-cb00aec9-0b309188-89803662-303ec278.jpg
+274,3c659977-44aefeb8-cdc200a8-24ea059e-9dd6758c,10002157,56373033,is there evidence of consolidation in this image?,presence,no,train,3c659977-44aefeb8-cdc200a8-24ea059e-9dd6758c.jpg
+277,2833b85f-3bb4273f-cffd3794-2bf2cd57-7ddb3f5f,10002177,50520012,is there edema?,presence,no,train,2833b85f-3bb4273f-cffd3794-2bf2cd57-7ddb3f5f.jpg
+280,e8c44648-ff02beea-3d5ff638-dec79b01-7df71a69,10002428,50027225,is there pneumonia?,presence,yes,train,e8c44648-ff02beea-3d5ff638-dec79b01-7df71a69.jpg
+285,7f51d06c-dad16fe6-ff21a632-edc5a3e6-ffa387bf,10002428,50292543,is there atelectasis in the bibasilar area?,presence,yes,train,7f51d06c-dad16fe6-ff21a632-edc5a3e6-ffa387bf.jpg
+289,85b903ac-bfc4d6cd-491d2a72-18e7c16e-23d2cafa,10002428,50444997,is there evidence of opacity in this image?,presence,yes,train,85b903ac-bfc4d6cd-491d2a72-18e7c16e-23d2cafa.jpg
+294,38f6981f-10343eb8-7c974e21-458d5218-f29f1617,10002428,50862960,"is there pleural effusion in the right,left area?",presence,yes,train,38f6981f-10343eb8-7c974e21-458d5218-f29f1617.jpg
+297,4e39ddbc-47422ff9-3de977e6-924e3c52-4cac3943,10002428,51574899,is there atelectasis in the right lower lobe area?,presence,no,train,4e39ddbc-47422ff9-3de977e6-924e3c52-4cac3943.jpg
+301,54c2ed5c-f4fbc20d-3bf4c783-283c3878-e9eb320d,10002428,52460896,is there evidence of pleural effusion in this image?,presence,yes,train,54c2ed5c-f4fbc20d-3bf4c783-283c3878-e9eb320d.jpg
+305,40a4d537-de28a3ab-aa746c28-750aea7d-2965bcdb,10002428,54020701,is there opacity?,presence,yes,train,40a4d537-de28a3ab-aa746c28-750aea7d-2965bcdb.jpg
+307,852306b6-02fc04aa-82d30dbf-0c2dd18d-5c9ef054,10002428,54831516,is the pleural effusion bilateral?,presence,yes,train,852306b6-02fc04aa-82d30dbf-0c2dd18d-5c9ef054.jpg
+309,3bea0373-0d10dd77-1cac5b90-651be924-d343b184,10002428,55758034,is there pleural effusion in the right area?,presence,no,train,3bea0373-0d10dd77-1cac5b90-651be924-d343b184.jpg
+313,06c9ad0d-eba8bb4c-7f1216e8-3164684d-4a4b228d,10002428,56100138,is there evidence of opacity in this image?,presence,yes,train,06c9ad0d-eba8bb4c-7f1216e8-3164684d-4a4b228d.jpg
+318,d98d5096-a32483d3-669ed39b-bc81eafb-5e251563,10002428,56597576,is there granuloma?,presence,no,train,d98d5096-a32483d3-669ed39b-bc81eafb-5e251563.jpg
+322,471418ab-0bfd6700-6bb770d0-07f7f6a3-2ce2d9c2,10002428,56836542,is there evidence of atelectasis in this image?,presence,yes,train,471418ab-0bfd6700-6bb770d0-07f7f6a3-2ce2d9c2.jpg
+327,217e6a56-b4a78227-a2acc34d-3b571d4a-27b9746a,10002428,57064083,is there evidence of pleural effusion in this image?,presence,yes,train,217e6a56-b4a78227-a2acc34d-3b571d4a-27b9746a.jpg
+330,bdf7f3f9-17832c70-9048e935-65663ff2-13f0814e,10002428,57321224,is there pneumothorax?,presence,no,train,bdf7f3f9-17832c70-9048e935-65663ff2-13f0814e.jpg
+333,e325a8d1-1d6b0dca-404efabc-204c6bbd-599788f0,10002428,57506266,is there atelectasis in the bibasilar area?,presence,yes,train,e325a8d1-1d6b0dca-404efabc-204c6bbd-599788f0.jpg
+337,3dc1b72b-7d6efa14-1f9db998-e46ff2db-2cb7375e,10002428,57887188,is there evidence of vascular congestion in this image?,presence,yes,train,3dc1b72b-7d6efa14-1f9db998-e46ff2db-2cb7375e.jpg
+341,0780573c-30edcc44-42f1084d-e77f7ebf-8a7dd236,10002428,57961288,is there evidence of pleural effusion in this image?,presence,yes,train,0780573c-30edcc44-42f1084d-e77f7ebf-8a7dd236.jpg
+343,b5f871e6-fc68f8fa-7580a463-b7674531-c7033269,10002428,58601917,is there tortuosity of the thoracic aorta?,presence,no,train,b5f871e6-fc68f8fa-7580a463-b7674531-c7033269.jpg
+348,12622d34-1a419a0d-6809a110-318f0fb1-eb8635e6,10002428,58658824,is there consolidation?,presence,no,train,12622d34-1a419a0d-6809a110-318f0fb1-eb8635e6.jpg
+353,08ee3bce-a3ed7087-0af8769d-de0d3535-1318d234,10002428,58838312,is there pneumothorax in the left apical area?,presence,no,train,08ee3bce-a3ed7087-0af8769d-de0d3535-1318d234.jpg
+356,7254cc41-a1055fd0-f387a81f-1f60ec41-4ae4ac3e,10002428,58851198,is there pleural effusion?,presence,yes,train,7254cc41-a1055fd0-f387a81f-1f60ec41-4ae4ac3e.jpg
+360,cc0b5db2-cc391879-a10b0ccf-5e554f89-37f1cf99,10002428,59015983,is there evidence of fluid overload in this image?,presence,no,train,cc0b5db2-cc391879-a10b0ccf-5e554f89-37f1cf99.jpg
+364,2337617e-d39e1d86-bc30b1cf-fa45dcb5-b7ac1695,10002428,59098825,is there evidence of pulmonary edema in this image?,presence,no,train,2337617e-d39e1d86-bc30b1cf-fa45dcb5-b7ac1695.jpg
+368,fa771fa1-d9571d07-bff8f655-327734a7-6e10b29d,10002428,59258773,is there free subdiaphragmatic gas?,presence,no,train,fa771fa1-d9571d07-bff8f655-327734a7-6e10b29d.jpg
+373,d999236f-95dcb8b7-a4d20a3f-be538f50-ce13a08e,10002428,59414737,is there evidence of pulmonary edema in this image?,presence,no,train,d999236f-95dcb8b7-a4d20a3f-be538f50-ce13a08e.jpg
+376,51b5892c-e54ed6e6-59ff70db-fd0b8509-1792398e,10002428,59659695,is there opacity in the left hemithorax area?,presence,no,train,51b5892c-e54ed6e6-59ff70db-fd0b8509-1792398e.jpg
