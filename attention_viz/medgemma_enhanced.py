@@ -19,7 +19,7 @@ import hashlib
 logger = logging.getLogger(__name__)
 
 
-def load_model_enhanced(model_id: str = "google/paligemma-3b-mix-224",
+def load_model_enhanced(model_id: str = "google/medgemma-4b-it",
                        load_in_8bit: bool = True,
                        load_in_4bit: bool = False) -> Tuple[Any, Any]:
     """
@@ -47,7 +47,7 @@ def load_model_enhanced(model_id: str = "google/paligemma-3b-mix-224",
     # Load processor
     processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
     
-    # Load model with eager attention for attention extraction
+    # Load MedGemma model
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         torch_dtype=torch.float16,
@@ -58,7 +58,7 @@ def load_model_enhanced(model_id: str = "google/paligemma-3b-mix-224",
     )
     
     model.eval()
-    logger.info(f"PaliGemma model loaded: {model_id}")
+    logger.info(f"Gemma model loaded: {model_id}")
     
     return model, processor
 

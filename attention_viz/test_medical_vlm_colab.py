@@ -90,7 +90,7 @@ print("\n5. Testing MedGemma...")
 try:
     print("  Loading model...")
     medgemma_model, medgemma_processor = load_model_enhanced(
-        model_id="google/paligemma-3b-mix-224",
+        model_id="google/medgemma-4b-it",
         load_in_8bit=True
     )
     print("✓ MedGemma loaded successfully")

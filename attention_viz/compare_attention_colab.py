@@ -202,7 +202,7 @@ def load_medgemma_model(model_id: str,
 def compare_models_on_input(
     image_path: str,
     prompt: str,
-    medgemma_model_id: str = "google/paligemma-3b-mix-224",  # PaliGemma medical VLM
+    medgemma_model_id: str = "google/medgemma-4b-it",  # Medical Gemma model
     target_words: Optional[List[str]] = None,
     llava_load_in_8bit: bool = True,
     medgemma_load_in_8bit: bool = True,

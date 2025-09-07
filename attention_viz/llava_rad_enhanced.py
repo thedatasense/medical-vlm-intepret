@@ -463,9 +463,24 @@ class EnhancedLLaVARadVisualizer:
             visual_grid = vec.reshape(grid_size, grid_size)
         else:
             # Handle non-square grids
+            # Ensure vec is 2D for resize
+            if len(vec.shape) == 1:
+                # Try to make it as square as possible
+                side = int(np.sqrt(len(vec)))
+                if side * side < len(vec):
+                    side += 1
+                # Pad if necessary
+                padded_vec = np.zeros(side * side)
+                padded_vec[:len(vec)] = vec
+                vec_2d = padded_vec.reshape(side, side)
+            else:
+                vec_2d = vec
+            
+            target_size = self.image_size // self.patch_size
             visual_grid = cv2.resize(
-                vec.reshape(1, -1), 
-                (self.image_size // self.patch_size, self.image_size // self.patch_size)
+                vec_2d.astype(np.float32), 
+                (target_size, target_size),
+                interpolation=cv2.INTER_LINEAR
             )
         
         # Normalize

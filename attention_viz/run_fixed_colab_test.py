@@ -31,19 +31,40 @@ except Exception as e:
 
 # 3. Find test image
 print("\n3. Finding test image...")
-image_dir = "/content/drive/MyDrive/Robust_Medical_LLM_Dataset/MIMIC_JPG/hundred_vqa"
+
+# Try multiple possible locations
+possible_dirs = [
+    "/content/drive/MyDrive/Robust_Medical_LLM_Dataset/MIMIC_JPG/hundred_vqa",
+    "/content/drive/MyDrive/medical_vlm_data",
+    "/content/medical_images",
+    "."  # Current directory
+]
+
 test_image_path = None
 test_image = None
 
-if os.path.exists(image_dir):
-    images = [f for f in os.listdir(image_dir) if f.endswith('.jpg')][:5]
-    if images:
-        test_image_path = os.path.join(image_dir, images[0])
-        test_image = Image.open(test_image_path).convert('RGB')
-        print(f"✓ Using image: {images[0]} (size: {test_image.size})")
-else:
-    print(f"✗ Image directory not found: {image_dir}")
-    exit(1)
+for image_dir in possible_dirs:
+    if os.path.exists(image_dir):
+        images = [f for f in os.listdir(image_dir) if f.endswith(('.jpg', '.png', '.jpeg'))][:5]
+        if images:
+            test_image_path = os.path.join(image_dir, images[0])
+            test_image = Image.open(test_image_path).convert('RGB')
+            print(f"✓ Using image from {image_dir}: {images[0]} (size: {test_image.size})")
+            break
+
+if test_image is None:
+    print("✗ No image directory found. Creating a test image...")
+    # Create a simple test image
+    test_image = Image.new('RGB', (512, 512), color='white')
+    # Draw a simple pattern
+    import numpy as np
+    pixels = np.ones((512, 512, 3), dtype=np.uint8) * 255
+    # Add a dark square in the middle (simulating a "finding")
+    pixels[200:300, 200:300] = 128
+    test_image = Image.fromarray(pixels)
+    test_image_path = "test_image.png"
+    test_image.save(test_image_path)
+    print(f"✓ Created synthetic test image: {test_image_path}")
 
 test_question = "Is there evidence of pneumonia?"
 
@@ -86,12 +107,12 @@ except Exception as e:
     import traceback
     traceback.print_exc()
 
-# 5. Test MedGemma/PaliGemma
-print("\n5. Testing MedGemma/PaliGemma...")
+# 5. Test MedGemma-4b-it
+print("\n5. Testing MedGemma-4b-it...")
 try:
     print("  Loading model with eager attention...")
     medgemma_model, medgemma_processor = load_model_enhanced(
-        model_id="google/paligemma-3b-mix-224",
+        model_id="google/medgemma-4b-it",
         load_in_8bit=True
     )
     print("✓ Model loaded successfully")
@@ -149,7 +170,7 @@ try:
         outputs.sequences[0], skip_special_tokens=True
     )
     
-    # Clean answer
+    # Clean answer (handles both Gemma and MedGemma formats)
     if '<start_of_turn>model' in raw_answer:
         parts = raw_answer.split('<start_of_turn>model')
         if len(parts) > 1:

@@ -130,7 +130,7 @@ def load_models(llava_8bit=True, medgemma_8bit=True):
     # Load MedGemma
     print("Loading MedGemma...")
     medgemma_model, medgemma_processor = load_model_enhanced(
-        model_id="google/paligemma-3b-mix-224",
+        model_id="google/medgemma-4b-it",
         load_in_8bit=medgemma_8bit
     )
     
