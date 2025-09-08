@@ -82,6 +82,9 @@ class LLaVARadMedical:
         
     def setup_llava_rad(self):
         """Ensure LLaVA-Rad is properly set up"""
+        # Fix conflicts first
+        fix_transformers_conflict()
+        
         # Add LLaVA-Rad to path if it exists
         llava_paths = ['/content/LLaVA-Rad', './LLaVA-Rad', '../LLaVA-Rad']
         
@@ -89,6 +92,15 @@ class LLaVARadMedical:
             if os.path.exists(path) and path not in sys.path:
                 sys.path.insert(0, path)
                 logger.info(f"Added {path} to Python path")
+                
+                # Check if open_clip is needed and available
+                try:
+                    import open_clip
+                    logger.info("open_clip is available")
+                except ImportError:
+                    logger.warning("open_clip not found - some features may not work")
+                    logger.info("Install with: pip install open_clip_torch")
+                
                 return True
                 
         logger.warning("LLaVA-Rad directory not found. Please clone from: https://github.com/microsoft/LLaVA-Rad.git")
