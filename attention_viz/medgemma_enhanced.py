@@ -48,7 +48,7 @@ def load_medgemma(dtype=torch.float16, device_map="auto"):
         from transformers import Gemma3ForConditionalGeneration
         model = Gemma3ForConditionalGeneration.from_pretrained(
             MEDGEMMA_ID, 
-            torch_dtype=dtype, 
+            dtype=dtype,  # Use dtype instead of torch_dtype
             device_map=device_map,
             trust_remote_code=True
         )
@@ -56,7 +56,7 @@ def load_medgemma(dtype=torch.float16, device_map="auto"):
         # Fallback to AutoModel
         model = AutoModelForCausalLM.from_pretrained(
             MEDGEMMA_ID, 
-            torch_dtype=dtype, 
+            dtype=dtype,  # Use dtype instead of torch_dtype 
             device_map=device_map,
             trust_remote_code=True,
             attn_implementation="eager"  # Enable attention outputs

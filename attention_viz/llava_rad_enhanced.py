@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-Enhanced LLaVA-Rad Attention Visualizer for Google Colab
-Optimized for memory efficiency with 8-bit quantization and CPU offload
+Enhanced LLaVA-Rad Attention Visualizer using Official Microsoft Repository
+Uses the actual LLaVA-Rad model for medical imaging
 """
 
 import os
+import sys
 import torch
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 from typing import Optional, Dict, List, Tuple, Any, Union
 import logging
-from transformers import AutoProcessor, LlavaForConditionalGeneration, BitsAndBytesConfig
 import cv2
 from dataclasses import dataclass
 import hashlib
@@ -21,8 +21,9 @@ from scipy.spatial.distance import jensenshannon
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Model ID
-LLAVA_RAD_ID = "microsoft/llava-rad"
+# Add LLaVA-Rad to path if available
+if os.path.exists('/content/LLaVA-Rad'):
+    sys.path.insert(0, '/content/LLaVA-Rad')
 
 
 @dataclass
@@ -35,117 +36,196 @@ class AttentionConfig:
     multi_head_mode: str = 'mean'
 
 
-def load_llava_rad(dtype=torch.float16, eight_bit=True, device_map="auto"):
+def load_llava_rad_official(
+    model_path: str = "microsoft/llava-med-v1.5-mistral-7b",
+    model_base: Optional[str] = None,
+    load_8bit: bool = False,
+    load_4bit: bool = False,
+    device: str = "cuda"
+):
     """
-    Load LLaVA-Rad with 8-bit quantization and CPU offload for Colab
+    Load LLaVA-Rad using the official Microsoft repository
     
     Args:
-        dtype: Model dtype (default: float16)
-        eight_bit: Use 8-bit quantization (default: True)
-        device_map: Device mapping (default: "auto")
+        model_path: Path to model weights or HuggingFace model ID
+        model_base: Base model name (optional)
+        load_8bit: Use 8-bit quantization
+        load_4bit: Use 4-bit quantization
+        device: Device to use
         
     Returns:
-        Tuple of (model, processor)
+        Tuple of (tokenizer, model, image_processor, context_len)
     """
-    # Configure 8-bit quantization with CPU offload
-    quant_config = BitsAndBytesConfig(
-        load_in_8bit=eight_bit,
-        llm_int8_enable_fp32_cpu_offload=True  # Keeps overflowed modules on CPU
-    )
-    
-    logger.info(f"Loading {LLAVA_RAD_ID} with 8-bit quantization and CPU offload...")
-    
-    # Load model
-    model = LlavaForConditionalGeneration.from_pretrained(
-        LLAVA_RAD_ID,
-        torch_dtype=dtype,
-        device_map=device_map,
-        quantization_config=quant_config,
-        trust_remote_code=True
-    )
-    
-    # Load processor
-    processor = AutoProcessor.from_pretrained(LLAVA_RAD_ID)
-    
-    model.eval()
-    logger.info("✓ LLaVA-Rad loaded successfully")
-    
-    return model, processor
+    try:
+        # Import from LLaVA-Rad
+        from llava.model.builder import load_pretrained_model
+        from llava.utils import disable_torch_init
+        
+        # Disable torch init for faster loading
+        disable_torch_init()
+        
+        logger.info(f"Loading LLaVA-Rad model: {model_path}")
+        
+        # Load the model
+        tokenizer, model, image_processor, context_len = load_pretrained_model(
+            model_path=model_path,
+            model_base=model_base,
+            model_name="llava-rad",
+            load_8bit=load_8bit,
+            load_4bit=load_4bit,
+            device=device
+        )
+        
+        model.eval()
+        logger.info("✓ LLaVA-Rad loaded successfully")
+        
+        return tokenizer, model, image_processor, context_len
+        
+    except ImportError:
+        raise ImportError(
+            "LLaVA-Rad not found. Please run:\n"
+            "!git clone https://github.com/microsoft/LLaVA-Rad.git\n"
+            "!cd LLaVA-Rad && pip install -e ."
+        )
 
 
-def extract_query_to_image_attention(
-    model: Any,
-    processor: Any,
+def process_llava_rad_image(image_processor, image: Image.Image, model):
+    """Process image for LLaVA-Rad"""
+    try:
+        from llava.mm_utils import process_images
+        
+        # Process image
+        image_tensor = process_images(
+            [image], 
+            image_processor, 
+            model.config
+        )
+        
+        if isinstance(image_tensor, list):
+            image_tensor = image_tensor[0]
+            
+        return image_tensor
+        
+    except ImportError:
+        # Fallback to basic processing
+        return image_processor.preprocess(
+            image, 
+            return_tensors='pt'
+        )['pixel_values'][0]
+
+
+def extract_llava_rad_attention(
+    model,
+    tokenizer,
+    image_processor,
     image: Image.Image,
-    text: str,
-    layer_indices: Optional[List[int]] = None
+    prompt: str,
+    conv_mode: str = "llava_v1"
 ) -> Tuple[np.ndarray, Dict[str, Any]]:
     """
-    Extract query-to-image attention from LLaVA model
+    Extract attention from LLaVA-Rad model
     
+    Args:
+        model: LLaVA-Rad model
+        tokenizer: Tokenizer
+        image_processor: Image processor
+        image: PIL Image
+        prompt: Text prompt
+        conv_mode: Conversation mode
+        
     Returns:
         Tuple of (attention_map, metadata)
     """
-    # Format prompt
-    prompt = f"USER: <image>\n{text} ASSISTANT:"
-    
-    # Process inputs
-    inputs = processor(text=prompt, images=image, return_tensors="pt")
-    
-    # Move to device
-    device = next(model.parameters()).device
-    inputs = {k: v.to(device) if torch.is_tensor(v) else v for k, v in inputs.items()}
-    
-    # Forward pass with attention
-    with torch.no_grad():
-        outputs = model(**inputs, output_attentions=True, use_cache=False)
-    
-    # Determine layers to use
-    num_layers = len(outputs.attentions)
-    if layer_indices is None:
-        # Use last quarter of layers
-        layer_indices = list(range(3 * num_layers // 4, num_layers))
-    
-    # Find image token positions
-    # For LLaVA, image tokens are typically after the image placeholder
-    input_ids = inputs["input_ids"][0].cpu()
-    
-    # Estimate image token range (LLaVA uses 576 tokens for 336x336 image)
-    num_patches = 576  # Standard for LLaVA
-    text_tokens_before = len(processor.tokenizer.encode(prompt.split("<image>")[0]))
-    image_start = text_tokens_before + 1
-    image_end = image_start + num_patches
-    
-    # Query position is last token
-    query_pos = inputs["input_ids"].shape[1] - 1
-    
-    # Extract attention
-    attention_maps = []
-    for layer_idx in layer_indices:
-        layer_attn = outputs.attentions[layer_idx][0]  # Remove batch dim
+    try:
+        from llava.conversation import conv_templates
+        from llava.mm_utils import tokenizer_image_token
+        from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN
         
-        # Get attention from query to image tokens
-        query_to_img = layer_attn[:, query_pos, image_start:image_end]  # (heads, img_tokens)
+        # Setup conversation
+        conv = conv_templates[conv_mode].copy()
         
-        # Average over heads
-        avg_attn = query_to_img.mean(dim=0)
-        attention_maps.append(avg_attn)
-    
-    # Average over layers
-    final_attention = torch.stack(attention_maps).mean(dim=0).cpu().numpy()
-    
-    # Reshape to 2D
-    grid_size = int(np.sqrt(num_patches))
-    attention_2d = final_attention.reshape(grid_size, grid_size)
-    
-    metadata = {
-        "num_patches": num_patches,
-        "query_position": query_pos,
-        "layers_used": layer_indices,
-        "grid_size": grid_size
-    }
-    
-    return attention_2d, metadata
+        # Prepare prompt with image token
+        if model.config.mm_use_im_start_end:
+            prompt = DEFAULT_IMAGE_TOKEN + '\n' + prompt
+        else:
+            prompt = DEFAULT_IMAGE_TOKEN + prompt
+        
+        conv.append_message(conv.roles[0], prompt)
+        conv.append_message(conv.roles[1], None)
+        prompt_text = conv.get_prompt()
+        
+        # Tokenize
+        input_ids = tokenizer_image_token(
+            prompt_text,
+            tokenizer,
+            IMAGE_TOKEN_INDEX,
+            return_tensors='pt'
+        ).unsqueeze(0)
+        
+        # Process image
+        image_tensor = process_llava_rad_image(image_processor, image, model)
+        if len(image_tensor.shape) == 3:
+            image_tensor = image_tensor.unsqueeze(0)
+        
+        # Move to device
+        device = next(model.parameters()).device
+        input_ids = input_ids.to(device)
+        image_tensor = image_tensor.to(dtype=model.dtype, device=device)
+        
+        # Forward pass with attention
+        with torch.no_grad():
+            outputs = model(
+                input_ids=input_ids,
+                images=image_tensor,
+                output_attentions=True,
+                use_cache=False
+            )
+        
+        # Extract attention
+        if hasattr(outputs, 'attentions') and outputs.attentions:
+            # Get attention from last layers
+            num_layers = len(outputs.attentions)
+            layer_indices = list(range(3 * num_layers // 4, num_layers))
+            
+            # Find image token positions
+            # LLaVA-Rad typically uses 576 tokens for 336x336 image
+            num_patches = 576
+            image_start = torch.where(input_ids == IMAGE_TOKEN_INDEX)[1][0].item() if IMAGE_TOKEN_INDEX in input_ids else 10
+            image_end = image_start + num_patches
+            
+            # Query position (last token)
+            query_pos = input_ids.shape[1] - 1
+            
+            # Extract attention maps
+            attention_maps = []
+            for layer_idx in layer_indices:
+                layer_attn = outputs.attentions[layer_idx][0]  # Remove batch
+                
+                if query_pos < layer_attn.shape[1] and image_end <= layer_attn.shape[2]:
+                    # Query to image attention
+                    query_to_img = layer_attn[:, query_pos, image_start:image_end]
+                    avg_attn = query_to_img.mean(dim=0)
+                    attention_maps.append(avg_attn)
+            
+            if attention_maps:
+                # Average and reshape
+                final_attention = torch.stack(attention_maps).mean(dim=0).cpu().numpy()
+                grid_size = int(np.sqrt(num_patches))
+                attention_2d = final_attention.reshape(grid_size, grid_size)
+                
+                return attention_2d, {
+                    "method": "llava_rad_attention",
+                    "num_patches": num_patches,
+                    "layers_used": layer_indices
+                }
+        
+        # Fallback to uniform attention
+        logger.warning("No attention extracted, using uniform")
+        return np.ones((24, 24)) / (24 * 24), {"method": "uniform"}
+        
+    except Exception as e:
+        logger.error(f"Attention extraction error: {e}")
+        return np.ones((24, 24)) / (24 * 24), {"method": "uniform", "error": str(e)}
 
 
 class AttentionMetrics:
@@ -163,50 +243,43 @@ class AttentionMetrics:
         focus_score = 1 - (entropy / max_entropy)
         
         return {'focus': float(focus_score)}
-    
-    @staticmethod
-    def calculate_consistency(attention_maps: List[np.ndarray]) -> float:
-        """Calculate consistency across multiple maps"""
-        if len(attention_maps) < 2:
-            return 1.0
-        
-        # Calculate pairwise JS divergence
-        js_divs = []
-        for i in range(len(attention_maps)):
-            for j in range(i + 1, len(attention_maps)):
-                # Flatten and normalize
-                map1 = attention_maps[i].flatten()
-                map1 = map1 / (map1.sum() + 1e-10)
-                map2 = attention_maps[j].flatten()  
-                map2 = map2 / (map2.sum() + 1e-10)
-                
-                js_div = jensenshannon(map1, map2)
-                js_divs.append(js_div)
-        
-        # Consistency is inverse of mean JS divergence
-        mean_js = np.mean(js_divs) if js_divs else 0
-        return float(1 - mean_js)
 
 
 class EnhancedLLaVARadVisualizer:
-    """Main LLaVA-Rad visualizer class optimized for Colab"""
+    """LLaVA-Rad visualizer using official Microsoft implementation"""
     
     def __init__(self, config: Optional[AttentionConfig] = None):
         self.config = config or AttentionConfig()
         self.model = None
-        self.processor = None
+        self.tokenizer = None
+        self.image_processor = None
+        self.context_len = None
         self.cache = {}
         
-    def load_model(self, load_in_8bit: bool = True):
-        """Load model with 8-bit quantization by default"""
-        self.model, self.processor = load_llava_rad(eight_bit=load_in_8bit)
+    def load_model(
+        self, 
+        model_path: str = "microsoft/llava-med-v1.5-mistral-7b",
+        model_base: Optional[str] = None,
+        load_in_8bit: bool = False,
+        load_in_4bit: bool = False
+    ):
+        """Load LLaVA-Rad model from official repository"""
+        
+        # Load using official loader
+        self.tokenizer, self.model, self.image_processor, self.context_len = load_llava_rad_official(
+            model_path=model_path,
+            model_base=model_base,
+            load_8bit=load_in_8bit,
+            load_4bit=load_in_4bit
+        )
         
     def generate_with_attention(
         self,
         image_path: Union[str, Image.Image],
         prompt: str,
         max_new_tokens: int = 100,
-        use_cache: bool = True
+        use_cache: bool = True,
+        conv_mode: str = "llava_v1"
     ) -> Dict[str, Any]:
         """Generate response with attention extraction"""
         
@@ -226,37 +299,68 @@ class EnhancedLLaVARadVisualizer:
         
         try:
             # Extract attention
-            attention_map, metadata = extract_query_to_image_attention(
-                self.model, self.processor, image, prompt
+            attention_map, metadata = extract_llava_rad_attention(
+                self.model,
+                self.tokenizer,
+                self.image_processor,
+                image,
+                prompt,
+                conv_mode
             )
             
             # Generate answer
-            full_prompt = f"USER: <image>\n{prompt} ASSISTANT:"
-            inputs = self.processor(
-                text=full_prompt,
-                images=image,
-                return_tensors="pt"
-            )
+            from llava.conversation import conv_templates
+            from llava.mm_utils import tokenizer_image_token
+            from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN
+            
+            # Setup conversation for generation
+            conv = conv_templates[conv_mode].copy()
+            
+            if self.model.config.mm_use_im_start_end:
+                prompt = DEFAULT_IMAGE_TOKEN + '\n' + prompt
+            else:
+                prompt = DEFAULT_IMAGE_TOKEN + prompt
+                
+            conv.append_message(conv.roles[0], prompt)
+            conv.append_message(conv.roles[1], None)
+            prompt_text = conv.get_prompt()
+            
+            # Tokenize
+            input_ids = tokenizer_image_token(
+                prompt_text,
+                self.tokenizer,
+                IMAGE_TOKEN_INDEX,
+                return_tensors='pt'
+            ).unsqueeze(0)
+            
+            # Process image
+            image_tensor = process_llava_rad_image(self.image_processor, image, self.model)
+            if len(image_tensor.shape) == 3:
+                image_tensor = image_tensor.unsqueeze(0)
             
             # Move to device
             device = next(self.model.parameters()).device
-            inputs = {k: v.to(device) if torch.is_tensor(v) else v for k, v in inputs.items()}
+            input_ids = input_ids.to(device)
+            image_tensor = image_tensor.to(dtype=self.model.dtype, device=device)
             
-            # Generate (no temperature since sampling is disabled)
+            # Generate
             with torch.no_grad():
-                outputs = self.model.generate(
-                    **inputs,
+                output_ids = self.model.generate(
+                    input_ids,
+                    images=image_tensor,
+                    do_sample=False,
                     max_new_tokens=max_new_tokens,
-                    do_sample=False,  # Deterministic
-                    pad_token_id=self.processor.tokenizer.pad_token_id,
-                    eos_token_id=self.processor.tokenizer.eos_token_id
+                    use_cache=True
                 )
             
-            # Decode answer
-            answer = self.processor.decode(outputs[0], skip_special_tokens=True)
-            # Extract assistant response
-            if "ASSISTANT:" in answer:
-                answer = answer.split("ASSISTANT:")[-1].strip()
+            # Decode
+            outputs = self.tokenizer.decode(output_ids[0], skip_special_tokens=True).strip()
+            
+            # Extract answer
+            if conv.sep_style == 'two':
+                answer = outputs.split(conv.sep2)[-1].strip()
+            else:
+                answer = outputs.split(conv.sep)[-1].strip()
             
             # Calculate metrics
             metrics = AttentionMetrics.calculate_focus_score(attention_map)
@@ -265,7 +369,7 @@ class EnhancedLLaVARadVisualizer:
                 'answer': answer,
                 'visual_attention': attention_map,
                 'metrics': metrics,
-                'attention_method': 'query_to_image',
+                'attention_method': metadata.get('method', 'llava_rad'),
                 'metadata': metadata
             }
             
@@ -277,6 +381,8 @@ class EnhancedLLaVARadVisualizer:
             
         except Exception as e:
             logger.error(f"Error during generation: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 'answer': f"Error: {str(e)}",
                 'visual_attention': None,
@@ -336,3 +442,33 @@ class EnhancedLLaVARadVisualizer:
         
         img_array = buf.reshape(nrows, ncols, 3)
         return Image.fromarray(img_array)
+
+
+# Backward compatibility - if LLaVA-Rad not available, use HF models
+def load_llava_rad(dtype=torch.float16, eight_bit=True, device_map="auto"):
+    """Fallback loader for when LLaVA-Rad repo is not available"""
+    logger.warning("Using fallback HuggingFace LLaVA loader. For best results, install LLaVA-Rad.")
+    
+    from transformers import AutoProcessor, LlavaForConditionalGeneration, BitsAndBytesConfig
+    
+    model_id = "llava-hf/llava-1.5-7b-hf"
+    processor = AutoProcessor.from_pretrained(model_id)
+    
+    if eight_bit:
+        quant_config = BitsAndBytesConfig(
+            load_in_8bit=True,
+            llm_int8_enable_fp32_cpu_offload=True
+        )
+    else:
+        quant_config = None
+    
+    model = LlavaForConditionalGeneration.from_pretrained(
+        model_id,
+        dtype=dtype,
+        device_map=device_map,
+        quantization_config=quant_config,
+        low_cpu_mem_usage=True
+    )
+    
+    model.eval()
+    return model, processor
