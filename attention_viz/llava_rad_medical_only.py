@@ -26,14 +26,33 @@ logger = logging.getLogger(__name__)
 
 
 def fix_transformers_conflict():
-    """Fix the llava config conflict in transformers"""
+    """Fix model registration conflicts in transformers"""
     try:
         from transformers.models.auto import configuration_auto
+        
+        # List of models that can cause conflicts
+        conflicting_models = ['llava', 'open_clip', 'clip']
+        
         if hasattr(configuration_auto.CONFIG_MAPPING, '_extra_content'):
-            if 'llava' in configuration_auto.CONFIG_MAPPING._extra_content:
-                del configuration_auto.CONFIG_MAPPING._extra_content['llava']
-                logger.info("Fixed transformers llava conflict")
-    except:
+            extra_content = configuration_auto.CONFIG_MAPPING._extra_content
+            for model_name in conflicting_models:
+                if model_name in extra_content:
+                    del extra_content[model_name]
+                    logger.info(f"Fixed transformers {model_name} conflict")
+                    
+        # Also check AutoConfig
+        try:
+            from transformers import AutoConfig
+            if hasattr(AutoConfig, '_config_mapping') and hasattr(AutoConfig._config_mapping, '_extra_content'):
+                extra_content = AutoConfig._config_mapping._extra_content
+                for model_name in conflicting_models:
+                    if model_name in extra_content:
+                        del extra_content[model_name]
+                        logger.info(f"Fixed AutoConfig {model_name} conflict")
+        except:
+            pass
+    except Exception as e:
+        logger.warning(f"Could not fix conflicts: {e}")
         pass
 
 
