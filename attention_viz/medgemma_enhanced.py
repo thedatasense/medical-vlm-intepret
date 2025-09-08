@@ -1,377 +1,362 @@
 #!/usr/bin/env python3
 """
-Enhanced MedGemma Attention Extraction with Gemma3 Support
-Updated to use modern Transformers APIs and Gemma3-specific features
+Enhanced MedGemma Attention Extraction for Google Colab
+Fixed image placeholder count and optimized for Gemma3
 """
 
 import torch
-import torch.nn.functional as F
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
-from typing import Optional, Dict, List, Tuple, Any, Union
+from typing import Optional, Dict, List, Tuple, Any
 import logging
+from transformers import AutoProcessor, AutoModelForCausalLM
 import cv2
-from scipy.spatial.distance import jensenshannon
 from dataclasses import dataclass
-import hashlib
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Default model ID for MedGemma
-MODEL_ID = "google/medgemma-4b-it"
-
-
-def load_model_enhanced(model_id: str = MODEL_ID,
-                       load_in_8bit: bool = True,
-                       load_in_4bit: bool = False,
-                       dtype: torch.dtype = torch.bfloat16) -> Tuple[Any, Any]:
-    """
-    Enhanced model loading function for MedGemma with Gemma3 support.
-    
-    Args:
-        model_id: Model identifier (default: google/medgemma-4b-it)
-        load_in_8bit: Use 8-bit quantization
-        load_in_4bit: Use 4-bit quantization
-        dtype: Default dtype (bfloat16 recommended for Gemma3)
-    
-    Returns:
-        Tuple of (model, processor)
-    """
-    try:
-        from transformers import AutoProcessor, AutoModelForCausalLM, BitsAndBytesConfig
-        # Try to import Gemma3 specific classes if available
-        try:
-            from transformers import Gemma3ForConditionalGeneration
-            use_gemma3_class = True
-        except ImportError:
-            use_gemma3_class = False
-            logger.info("Gemma3ForConditionalGeneration not available, using AutoModelForCausalLM")
-    except ImportError:
-        raise ImportError("Please install transformers>=4.56.1: pip install transformers>=4.56.1")
-    
-    # Configure quantization if requested
-    quantization_config = None
-    if load_in_8bit or load_in_4bit:
-        quantization_config = BitsAndBytesConfig(
-            load_in_8bit=load_in_8bit,
-            load_in_4bit=load_in_4bit,
-            bnb_4bit_compute_dtype=torch.float16,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4"
-        )
-        # Override dtype for quantized models
-        dtype = torch.float16
-    
-    # Load processor with left padding for generation
-    processor = AutoProcessor.from_pretrained(
-        model_id, 
-        trust_remote_code=True,
-        padding_side="left"
-    )
-    
-    # Load model with appropriate class
-    if use_gemma3_class:
-        model = Gemma3ForConditionalGeneration.from_pretrained(
-            model_id,
-            torch_dtype=dtype,
-            device_map="auto",
-            quantization_config=quantization_config,
-            trust_remote_code=True,
-            attn_implementation="eager"  # Enable attention outputs
-        )
-    else:
-        model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            torch_dtype=dtype,
-            device_map="auto",
-            quantization_config=quantization_config,
-            trust_remote_code=True,
-            attn_implementation="eager"  # Enable attention outputs
-        )
-    
-    model.eval()
-    logger.info(f"MedGemma model loaded: {model_id} (dtype: {dtype})")
-    
-    return model, processor
-
-
-def extract_token_to_image_attention(
-    model: Any,
-    processor: Any,
-    pil_image: Image.Image,
-    text: str,
-    do_pan_and_scan: bool = False
-) -> Tuple[torch.Tensor, Dict[str, Any]]:
-    """
-    Extract token-to-image attention for Gemma3 models with SigLIP encoder.
-    
-    Args:
-        model: The loaded Gemma3 model
-        processor: The processor for the model
-        pil_image: Input PIL image
-        text: Input text query
-        do_pan_and_scan: Enable pan-and-scan for variable image sizes
-        
-    Returns:
-        Tuple of (attention_weights, metadata_dict)
-    """
-    # Prepare messages in Gemma3 format
-    messages = [{
-        "role": "user",
-        "content": [
-            {"type": "image", "image": pil_image},
-            {"type": "text", "text": text}
-        ]
-    }]
-    
-    # Apply chat template and tokenize
-    inputs = processor.apply_chat_template(
-        messages,
-        tokenize=True,
-        return_tensors="pt",
-        add_generation_prompt=True,
-        do_pan_and_scan=do_pan_and_scan
-    )
-    
-    # Move to device
-    device = next(model.parameters()).device
-    inputs = {k: v.to(device) if torch.is_tensor(v) else v for k, v in inputs.items()}
-    
-    # Forward pass with attention
-    with torch.no_grad():
-        outputs = model(**inputs, output_attentions=True, use_cache=False)
-    
-    # Extract attention from last quarter of layers
-    num_layers = model.config.num_hidden_layers
-    last_quarter_start = max(1, 3 * num_layers // 4)
-    
-    # Stack attention from last quarter of layers
-    attn_stack = torch.stack([
-        outputs.attentions[i] for i in range(last_quarter_start, num_layers)
-    ])  # Shape: (layers, batch, heads, seq, seq)
-    
-    # Find image token positions
-    if hasattr(processor.tokenizer, 'convert_tokens_to_ids'):
-        img_token_id = processor.tokenizer.convert_tokens_to_ids("<image>")
-    else:
-        # Fallback: look for special tokens
-        img_token_id = None
-        for token, token_id in processor.tokenizer.get_vocab().items():
-            if "<image>" in token:
-                img_token_id = token_id
-                break
-    
-    if img_token_id is not None:
-        img_positions = (inputs["input_ids"][0] == img_token_id).nonzero(as_tuple=True)[0]
-    else:
-        # Fallback: estimate image positions based on token count
-        # Gemma3 typically uses ~256-576 tokens per image depending on resolution
-        text_tokens = processor.tokenizer(text, return_tensors="pt")["input_ids"].shape[1]
-        total_tokens = inputs["input_ids"].shape[1]
-        estimated_img_tokens = total_tokens - text_tokens - 10  # Account for special tokens
-        img_positions = torch.arange(5, 5 + estimated_img_tokens)  # Skip initial tokens
-    
-    # Extract attention from last text token to image positions
-    query_position = inputs["input_ids"].shape[1] - 1  # Last token position
-    
-    # Get attention weights: (layers, heads, img_positions)
-    attn_to_img = attn_stack[..., query_position, img_positions]
-    
-    # Average over heads and layers
-    attn_weights = attn_to_img.mean(dim=(0, 1))  # Shape: (num_image_tokens,)
-    
-    metadata = {
-        "num_image_tokens": len(img_positions),
-        "query_position": query_position,
-        "num_layers_used": len(range(last_quarter_start, num_layers)),
-        "do_pan_and_scan": do_pan_and_scan
-    }
-    
-    return attn_weights.cpu(), metadata
+# Model ID
+MEDGEMMA_ID = "google/medgemma-4b-it"
 
 
 @dataclass
 class AttentionExtractionConfig:
     """Configuration for attention extraction"""
-    use_gradcam: bool = False
-    gradcam_layer: str = 'language_model.model.layers[-1]'
-    token_gating: bool = True
-    multi_token_aggregation: str = 'mean'  # 'mean', 'max', 'weighted'
-    attention_head_reduction: str = 'mean'  # 'mean', 'max', 'entropy_weighted'
-    use_cross_attention: bool = True
-    fallback_chain: List[str] = None
-    cache_enabled: bool = True
-    debug_mode: bool = False
-    do_pan_and_scan: bool = False  # Gemma3 specific
+    do_pan_and_scan: bool = False
+    attention_head_reduction: str = 'mean'
+    use_last_quarter_layers: bool = True
+
+
+def load_medgemma(dtype=torch.float16, device_map="auto"):
+    """
+    Load MedGemma model optimized for Colab
     
-    def __post_init__(self):
-        if self.fallback_chain is None:
-            self.fallback_chain = ['gemma3_attention', 'cross_attention', 'gradcam', 'uniform']
+    Args:
+        dtype: Model dtype (default: float16)
+        device_map: Device mapping (default: "auto")
+        
+    Returns:
+        Tuple of (model, processor)
+    """
+    logger.info(f"Loading {MEDGEMMA_ID}...")
+    
+    # Load model - try Gemma3 specific class if available
+    try:
+        from transformers import Gemma3ForConditionalGeneration
+        model = Gemma3ForConditionalGeneration.from_pretrained(
+            MEDGEMMA_ID, 
+            torch_dtype=dtype, 
+            device_map=device_map,
+            trust_remote_code=True
+        )
+    except ImportError:
+        # Fallback to AutoModel
+        model = AutoModelForCausalLM.from_pretrained(
+            MEDGEMMA_ID, 
+            torch_dtype=dtype, 
+            device_map=device_map,
+            trust_remote_code=True,
+            attn_implementation="eager"  # Enable attention outputs
+        )
+    
+    # Load processor with left padding for generation
+    processor = AutoProcessor.from_pretrained(
+        MEDGEMMA_ID, 
+        padding_side="left",
+        trust_remote_code=True
+    )
+    
+    model.eval()
+    logger.info("✓ MedGemma loaded successfully")
+    
+    return model, processor
+
+
+def build_inputs(processor, pil_image, question, do_pan_and_scan=False, device=None):
+    """
+    Build inputs with correct image placeholder count
+    
+    Args:
+        processor: The MedGemma processor
+        pil_image: PIL Image
+        question: Text question
+        do_pan_and_scan: Enable pan and scan (default: False)
+        device: Target device
+        
+    Returns:
+        Dict of model inputs
+    """
+    # Build message with exactly one image placeholder
+    messages = [{
+        "role": "user",
+        "content": [
+            {"type": "image"},  # Exactly one image placeholder
+            {"type": "text", "text": question}
+        ]
+    }]
+    
+    # Apply chat template
+    prompt = processor.apply_chat_template(
+        messages, 
+        tokenize=False, 
+        add_generation_prompt=True,
+        do_pan_and_scan=do_pan_and_scan  # Gemma3 supports this
+    )
+    
+    # Process with single image
+    encoded = processor(
+        text=prompt, 
+        images=[pil_image],  # Pass as list with one image
+        do_pan_and_scan=do_pan_and_scan, 
+        return_tensors="pt"
+    )
+    
+    # Move to device
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    return {k: v.to(device) for k, v in encoded.items()}
+
+
+def generate_answer(model, processor, inputs, max_new_tokens=64):
+    """
+    Generate answer with deterministic decoding
+    
+    Args:
+        model: The model
+        processor: The processor
+        inputs: Model inputs
+        max_new_tokens: Max tokens to generate
+        
+    Returns:
+        Generated text answer
+    """
+    # Generate without temperature (deterministic)
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,  # No sampling = deterministic
+            pad_token_id=processor.tokenizer.pad_token_id,
+            eos_token_id=processor.tokenizer.eos_token_id,
+            use_cache=True
+        )
+    
+    # Decode
+    answer = processor.decode(outputs[0], skip_special_tokens=True)
+    
+    # Clean answer - extract model response
+    if '<start_of_turn>model' in answer:
+        answer = answer.split('<start_of_turn>model')[-1]
+        if '<end_of_turn>' in answer:
+            answer = answer.split('<end_of_turn>')[0]
+    
+    return answer.strip()
+
+
+def extract_attention_once(model, inputs, config=None):
+    """
+    Extract attention with single forward pass
+    
+    Args:
+        model: The model
+        inputs: Model inputs
+        config: Attention extraction config
+        
+    Returns:
+        Attention tensors
+    """
+    if config is None:
+        config = AttentionExtractionConfig()
+    
+    with torch.no_grad():
+        outputs = model(**inputs, output_attentions=True, use_cache=False)
+    
+    return outputs.attentions  # List of attention tensors per layer
+
+
+def extract_token_to_image_attention(
+    model, 
+    processor, 
+    pil_image, 
+    text,
+    config=None
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """
+    Extract token-to-image attention for MedGemma
+    
+    Returns:
+        Tuple of (attention_map, metadata)
+    """
+    if config is None:
+        config = AttentionExtractionConfig()
+    
+    # Build inputs
+    inputs = build_inputs(
+        processor, pil_image, text, 
+        do_pan_and_scan=config.do_pan_and_scan,
+        device=next(model.parameters()).device
+    )
+    
+    # Get attention
+    attentions = extract_attention_once(model, inputs, config)
+    
+    # Determine layers to use
+    num_layers = len(attentions)
+    if config.use_last_quarter_layers:
+        layer_indices = list(range(3 * num_layers // 4, num_layers))
+    else:
+        layer_indices = list(range(num_layers))
+    
+    # Find image token positions
+    # For MedGemma/Gemma3, need to identify where image tokens are
+    input_ids = inputs["input_ids"][0].cpu()
+    
+    # Try to find image token ID
+    image_token_id = None
+    if hasattr(processor.tokenizer, 'convert_tokens_to_ids'):
+        try:
+            image_token_id = processor.tokenizer.convert_tokens_to_ids("<image>")
+        except:
+            pass
+    
+    if image_token_id is not None:
+        image_positions = (input_ids == image_token_id).nonzero(as_tuple=True)[0]
+    else:
+        # Estimate based on typical patterns
+        # Gemma3 uses ~256-576 tokens per image
+        text_tokens = len(processor.tokenizer.encode(text))
+        total_tokens = input_ids.shape[0]
+        estimated_img_tokens = max(256, total_tokens - text_tokens - 20)
+        # Image tokens typically after initial tokens
+        image_positions = torch.arange(10, min(10 + estimated_img_tokens, total_tokens - 10))
+    
+    # Query position is last token
+    query_pos = input_ids.shape[0] - 1
+    
+    # Extract attention from query to image tokens
+    attention_maps = []
+    for layer_idx in layer_indices:
+        layer_attn = attentions[layer_idx][0]  # Remove batch dim
+        
+        # Get attention from query to image positions
+        if len(image_positions) > 0:
+            query_to_img = layer_attn[:, query_pos, image_positions]  # (heads, img_tokens)
+            
+            # Reduce over heads
+            if config.attention_head_reduction == 'mean':
+                avg_attn = query_to_img.mean(dim=0)
+            elif config.attention_head_reduction == 'max':
+                avg_attn = query_to_img.max(dim=0)[0]
+            else:
+                avg_attn = query_to_img.mean(dim=0)
+                
+            attention_maps.append(avg_attn)
+    
+    if not attention_maps:
+        # Fallback to uniform attention
+        num_tokens = len(image_positions) if len(image_positions) > 0 else 256
+        final_attention = np.ones(num_tokens) / num_tokens
+    else:
+        # Average over layers
+        final_attention = torch.stack(attention_maps).mean(dim=0).cpu().numpy()
+    
+    # Reshape to 2D
+    attention_2d = reshape_attention_to_grid(final_attention)
+    
+    metadata = {
+        "num_image_tokens": len(image_positions),
+        "query_position": query_pos,
+        "layers_used": layer_indices,
+        "do_pan_and_scan": config.do_pan_and_scan
+    }
+    
+    return attention_2d, metadata
+
+
+def reshape_attention_to_grid(attention_1d: np.ndarray) -> np.ndarray:
+    """Reshape 1D attention to 2D grid"""
+    num_tokens = len(attention_1d)
+    
+    # Try square first
+    grid_size = int(np.sqrt(num_tokens))
+    if grid_size * grid_size == num_tokens:
+        return attention_1d.reshape(grid_size, grid_size)
+    
+    # Try common aspect ratios
+    aspect_ratios = [(1, 1), (4, 3), (3, 4), (16, 9), (9, 16)]
+    
+    for w_ratio, h_ratio in aspect_ratios:
+        scale = np.sqrt(num_tokens / (w_ratio * h_ratio))
+        w = int(w_ratio * scale)
+        h = int(h_ratio * scale)
+        
+        if w * h == num_tokens:
+            return attention_1d.reshape(h, w)
+    
+    # Fallback: pad to square
+    grid_size = int(np.ceil(np.sqrt(num_tokens)))
+    padded = np.zeros(grid_size * grid_size)
+    padded[:num_tokens] = attention_1d
+    return padded.reshape(grid_size, grid_size)
 
 
 class EnhancedAttentionExtractor:
-    """Enhanced attention extraction with Gemma3 support"""
+    """Main attention extractor for MedGemma"""
     
     def __init__(self, config: Optional[AttentionExtractionConfig] = None):
         self.config = config or AttentionExtractionConfig()
-        self.cache = {} if self.config.cache_enabled else None
         
-    def extract_attention_gemma3(
+    def extract_token_conditioned_attention_robust(
         self,
         model: Any,
-        processor: Any,
-        pil_image: Image.Image,
-        text: str
-    ) -> Tuple[np.ndarray, str]:
-        """
-        Extract attention using Gemma3-specific method
-        """
-        try:
-            attn_weights, metadata = extract_token_to_image_attention(
-                model, processor, pil_image, text,
-                do_pan_and_scan=self.config.do_pan_and_scan
-            )
-            
-            # Reshape to 2D if needed
-            num_tokens = metadata["num_image_tokens"]
-            if num_tokens > 0:
-                # Assume square image grid
-                grid_size = int(np.sqrt(num_tokens))
-                if grid_size * grid_size == num_tokens:
-                    attention_map = attn_weights.numpy().reshape(grid_size, grid_size)
-                else:
-                    # Non-square, try common aspect ratios
-                    attention_map = self._reshape_attention(attn_weights.numpy(), num_tokens)
-                
-                return attention_map, 'gemma3_attention'
-            
-        except Exception as e:
-            logger.warning(f"Gemma3 attention extraction failed: {e}")
-        
-        return None, None
-        
-    def _reshape_attention(self, attention_1d: np.ndarray, num_tokens: int) -> np.ndarray:
-        """Reshape 1D attention to 2D with common aspect ratios"""
-        # Try common aspect ratios
-        aspect_ratios = [(1, 1), (4, 3), (3, 4), (16, 9), (9, 16)]
-        
-        for w_ratio, h_ratio in aspect_ratios:
-            # Find scaling factor
-            scale = np.sqrt(num_tokens / (w_ratio * h_ratio))
-            w = int(w_ratio * scale)
-            h = int(h_ratio * scale)
-            
-            if w * h == num_tokens:
-                return attention_1d.reshape(h, w)
-        
-        # Fallback: pad to nearest square
-        grid_size = int(np.ceil(np.sqrt(num_tokens)))
-        padded = np.zeros(grid_size * grid_size)
-        padded[:num_tokens] = attention_1d
-        return padded.reshape(grid_size, grid_size)
-    
-    def extract_token_conditioned_attention_robust(
-        self, 
-        model: Any,
-        processor: Any,
+        processor: Any, 
         gen_result: Dict,
         target_words: List[str],
         pil_image: Optional[Image.Image] = None,
         prompt: Optional[str] = None
     ) -> Tuple[np.ndarray, List[int], str]:
         """
-        Enhanced token-conditioned attention extraction with fallback chain
+        Extract attention with fallback support
         
         Returns:
             Tuple of (attention_map, token_indices, method_used)
         """
-        # Try Gemma3-specific extraction first if we have image and prompt
+        # If we have image and prompt, use direct extraction
         if pil_image is not None and prompt is not None:
-            attention_map, method = self.extract_attention_gemma3(
-                model, processor, pil_image, prompt
-            )
-            if attention_map is not None:
-                # Return dummy token indices for compatibility
-                return attention_map, [0], method
+            try:
+                attention_map, metadata = extract_token_to_image_attention(
+                    model, processor, pil_image, prompt, self.config
+                )
+                return attention_map, [], 'token_to_image'
+            except Exception as e:
+                logger.warning(f"Token-to-image extraction failed: {e}")
         
-        # Fallback to other methods
-        for method in self.config.fallback_chain:
-            if method == 'gemma3_attention':
-                continue  # Already tried
-            
-            if method == 'cross_attention':
-                result = self._extract_cross_attention(model, processor, gen_result, target_words)
-                if result[0] is not None:
-                    return result
-                    
-            elif method == 'gradcam' and self.config.use_gradcam:
-                result = self._extract_gradcam(model, processor, pil_image, target_words)
-                if result[0] is not None:
-                    return result
-                    
-            elif method == 'uniform':
-                # Last resort: uniform attention
-                return np.ones((32, 32)) / (32 * 32), [], 'uniform'
-        
-        return np.ones((32, 32)) / (32 * 32), [], 'fallback'
-    
-    def _extract_cross_attention(
-        self,
-        model: Any,
-        processor: Any,
-        gen_result: Dict,
-        target_words: List[str]
-    ) -> Tuple[Optional[np.ndarray], List[int], str]:
-        """Extract cross-attention from generation results"""
-        if not hasattr(gen_result, 'attentions') or gen_result.attentions is None:
-            return None, [], 'none'
-            
-        try:
-            # Implementation for cross-attention extraction
-            # This is a placeholder - implement based on model architecture
-            return None, [], 'none'
-        except Exception as e:
-            logger.warning(f"Cross-attention extraction failed: {e}")
-            return None, [], 'none'
-    
-    def _extract_gradcam(
-        self,
-        model: Any,
-        processor: Any,
-        pil_image: Optional[Image.Image],
-        target_words: List[str]
-    ) -> Tuple[Optional[np.ndarray], List[int], str]:
-        """Extract attention using GradCAM"""
-        # Placeholder for GradCAM implementation
-        return None, [], 'none'
+        # Fallback to uniform attention
+        return np.ones((32, 32)) / (32 * 32), [], 'uniform'
 
 
-# Backward compatibility functions
-def load_medgemma(dtype=torch.bfloat16, device_map="auto"):
-    """Legacy function name for compatibility"""
-    return load_model_enhanced(MODEL_ID, dtype=dtype)
-
-
-# Visualization utilities
 def visualize_attention_on_image(
     image: Image.Image,
     attention_map: np.ndarray,
-    title: str = "Attention Visualization",
+    title: str = "MedGemma Attention",
     cmap: str = 'hot',
-    alpha: float = 0.5
+    alpha: float = 0.5,
+    save_path: Optional[str] = None
 ) -> Image.Image:
-    """
-    Visualize attention map overlaid on image
-    """
-    # Resize attention to match image size
+    """Visualize attention overlaid on image"""
+    
+    # Resize attention to image size
     attention_resized = cv2.resize(
         attention_map,
         (image.width, image.height),
         interpolation=cv2.INTER_LINEAR
     )
     
-    # Normalize attention
+    # Normalize
     attention_norm = (attention_resized - attention_resized.min()) / (
         attention_resized.max() - attention_resized.min() + 1e-8
     )
@@ -384,11 +369,21 @@ def visualize_attention_on_image(
     ax.axis('off')
     plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     
-    # Convert to PIL Image
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight', dpi=150)
+    
+    # Convert to PIL
     fig.canvas.draw()
-    buf = fig.canvas.tostring_rgb()
+    buf = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
     ncols, nrows = fig.canvas.get_width_height()
     plt.close(fig)
     
-    img_array = np.frombuffer(buf, dtype=np.uint8).reshape(nrows, ncols, 3)
+    img_array = buf.reshape(nrows, ncols, 3)
     return Image.fromarray(img_array)
+
+
+# Backward compatibility
+def load_model_enhanced(model_id=MEDGEMMA_ID, load_in_8bit=False, load_in_4bit=False, **kwargs):
+    """Legacy function for compatibility"""
+    dtype = torch.float16 if (load_in_8bit or load_in_4bit) else torch.bfloat16
+    return load_medgemma(dtype=dtype, **kwargs)

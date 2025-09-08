@@ -24,32 +24,27 @@ def setup_environment_properly():
     else:
         print("1. Repository already exists")
     
-    # Step 2: Install core dependencies from requirements.txt
+    # Step 2: Install core dependencies
     print("\n2. Installing core dependencies...")
     
-    # First, install from requirements.txt if it exists
-    req_path = '/content/medical-vlm-intepret/attention_viz/requirements.txt'
-    if os.path.exists(req_path):
-        print("   Installing from requirements.txt...")
-        subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', req_path], check=False)
-    else:
-        # Fallback to manual install with modern versions
-        core_deps = [
-            'torch==2.4.1',
-            'torchvision==0.19.1',
-            'transformers>=4.56.1',  # Gemma3 support
-            'accelerate>=0.34.2',
-            'bitsandbytes>=0.43.2',  # CUDA 11-12.5
-            'opencv-python>=4.10',
-            'scipy>=1.13',
-            'matplotlib>=3.9',
-            'pillow>=10.4',
-            'einops>=0.8.0'
-        ]
-        
-        for dep in core_deps:
-            print(f"   Installing {dep}...")
-            subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', dep], check=False)
+    # Use the simplified pip command for Colab
+    print("   Running: pip install -U 'transformers>=4.56.1' accelerate bitsandbytes")
+    subprocess.run([
+        sys.executable, '-m', 'pip', 'install', '-U',
+        'transformers>=4.56.1', 'accelerate', 'bitsandbytes'
+    ], check=False)
+    
+    # Install other dependencies
+    other_deps = [
+        'opencv-python>=4.10.0',
+        'scipy>=1.13.0',
+        'matplotlib>=3.9.0',
+        'pillow>=10.4.0',
+        'einops>=0.8.0'
+    ]
+    
+    for dep in other_deps:
+        subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', dep], check=False)
     
     # Step 3: Handle LLaVA setup
     print("\n3. Setting up LLaVA...")
