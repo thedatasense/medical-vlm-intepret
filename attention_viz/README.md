@@ -2,11 +2,13 @@
 
 A streamlined codebase for comparing attention mechanisms between LLaVA-Rad and MedGemma-4b-it on medical imaging tasks.
 
+**Updated for modern Transformers (4.56.1+) with Gemma3 support and HuggingFace-first approach.**
+
 ## Essential Files
 
 ### Core Implementation
-- `llava_rad_enhanced.py` - Enhanced LLaVA-Rad visualizer with attention extraction
-- `medgemma_enhanced.py` - MedGemma model with attention extraction capabilities
+- `llava_rad_enhanced.py` - Enhanced LLaVA-Rad visualizer with HF-first loading
+- `medgemma_enhanced.py` - MedGemma with Gemma3 API support and robust attention extraction
 - `compare_attention_colab.py` - Side-by-side model comparison pipeline
 - `run_medical_vlm_analysis.py` - Complete analysis pipeline for robustness studies
 
@@ -29,8 +31,8 @@ A streamlined codebase for comparing attention mechanisms between LLaVA-Rad and 
 !git clone https://github.com/thedatasense/medical-vlm-intepret.git
 %cd medical-vlm-intepret/attention_viz
 
-# 2. Install dependencies
-!pip install torch transformers opencv-python scipy matplotlib pillow bitsandbytes
+# 2. Install dependencies (uses pinned versions from requirements.txt)
+!pip install -r requirements.txt
 
 # 3. Run comparison
 from compare_attention_colab import compare_models_on_input
@@ -47,6 +49,18 @@ results = compare_models_on_input(
 # 5. Run full analysis
 !python run_medical_vlm_analysis.py --n_studies 100
 ```
+
+## Key Updates
+
+1. **Modern Dependencies**: Pinned to Transformers 4.56.1+ for Gemma3 support
+2. **HuggingFace First**: Default to HF model loading (microsoft/llava-rad, google/medgemma-4b-it)
+3. **Robust Attention**: Handles variable vision token counts with SigLIP encoder support
+4. **Clean Architecture**: Removed redundant files and synthetic data generation
+
+## Models
+
+- **LLaVA-Rad**: `microsoft/llava-rad` (falls back to `llava-hf/llava-1.5-7b-hf` if needed)
+- **MedGemma**: `google/medgemma-4b-it` (uses Gemma3 APIs with bfloat16 by default)
 
 ## Archive
 

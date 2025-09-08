@@ -1,0 +1,26 @@
+# Medical VLM Analysis Dependencies
+# Minimal working set with pinned versions
+
+# Core ML frameworks
+torch==2.4.1
+torchvision==0.19.1
+
+# Transformers - Gemma 3 support starts at 4.50.0
+transformers>=4.56.1
+
+# Training and optimization
+accelerate>=0.34.2
+bitsandbytes>=0.43.2  # CUDA 11 to 12.5 coverage
+
+# Image processing
+opencv-python>=4.10
+pillow>=10.4
+
+# Scientific computing
+scipy>=1.13
+matplotlib>=3.9
+
+# Optional but recommended
+gradio>=4.44
+einops>=0.8.0
+timm>=1.0.0
