@@ -142,24 +142,24 @@ def load_models(llava_8bit=True, medgemma_8bit=True):
     print("\nLoading models...")
     
     # Import after environment setup
-    from llava_rad_enhanced import EnhancedLLaVARadVisualizer, AttentionConfig
-    from medgemma_enhanced import load_model_enhanced, EnhancedAttentionExtractor, AttentionExtractionConfig
+    from llava_rad_medical_only import LLaVARadMedical, MedicalAttentionConfig
+    from medgemma_enhanced import load_medgemma, EnhancedAttentionExtractor, AttentionExtractionConfig
     
     # Load LLaVA-Rad
     print("Loading LLaVA-Rad...")
-    llava_config = AttentionConfig(
-        use_medical_colormap=True,
-        multi_head_mode='mean',
-        percentile_clip=(5, 95)
+    llava_config = MedicalAttentionConfig(
+        colormap='hot',
+        attention_head_mode='mean',
+        layer_selection='last_quarter'
     )
-    llava_vis = EnhancedLLaVARadVisualizer(config=llava_config)
-    llava_vis.load_model(load_in_8bit=llava_8bit)
+    llava_vis = LLaVARadMedical(config=llava_config)
+    llava_vis.load_model(load_8bit=llava_8bit)
     
     # Load MedGemma
     print("Loading MedGemma...")
-    medgemma_model, medgemma_processor = load_model_enhanced(
-        model_id="google/medgemma-4b-it",
-        load_in_8bit=medgemma_8bit
+    medgemma_model, medgemma_processor = load_medgemma(
+        dtype=torch.float16 if not medgemma_8bit else torch.float32,
+        device_map="auto"
     )
     
     return llava_vis, medgemma_model, medgemma_processor
